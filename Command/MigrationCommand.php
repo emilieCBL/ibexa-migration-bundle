@@ -67,7 +67,7 @@ EOT
      * @param OutputInterface $output
      * @return int 0 if everything went fine, or an error code
      */
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output)  : int
     {
         $this->setOutput($output);
         $this->setVerbosity($output->getVerbosity());
