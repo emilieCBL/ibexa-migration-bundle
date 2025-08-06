@@ -4,6 +4,7 @@ namespace Kaliop\eZMigrationBundle\Command;
 
 use Kaliop\eZMigrationBundle\API\Value\Migration;
 use Kaliop\eZMigrationBundle\API\Value\MigrationDefinition;
+use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
@@ -14,21 +15,22 @@ use Symfony\Component\Console\Question\ConfirmationQuestion;
  * Command to manipulate the available migrations / migration definitions.
  * @todo should we split off the actions used to manipulate migration defs into a separate command `MigrationDefinition` ?
  */
+#[AsCommand(
+    name: 'kaliop:migration:migration',
+    description: 'Manually modify or get info about migrations in the database table.'
+)]
 class MigrationCommand extends AbstractCommand
 {
-    protected static $defaultName = 'kaliop:migration:migration';
-
     /**
      * Set up the command.
      *
      * Define the name, options and help text.
      */
-    protected function configure()
+    protected function configure(): void
     {
         parent::configure();
 
         $this
-            ->setDescription('Manually modify or get info about migrations in the database table.')
             ->addOption('delete', null, InputOption::VALUE_NONE, "Delete the specified migration.")
             ->addOption('info', null, InputOption::VALUE_NONE, "Get info about the specified migration.")
             ->addOption('add', null, InputOption::VALUE_NONE, "Add the specified migration definition.")
@@ -67,12 +69,12 @@ EOT
      * @param OutputInterface $output
      * @return int 0 if everything went fine, or an error code
      */
-    protected function execute(InputInterface $input, OutputInterface $output)  : int
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $this->setOutput($output);
         $this->setVerbosity($output->getVerbosity());
 
-        if (!$input->getOption('add') && !$input->getOption('delete') && !$input->getOption('skip') && 
+        if (!$input->getOption('add') && !$input->getOption('delete') && !$input->getOption('skip') &&
             !$input->getOption('info') && !$input->getOption('fail')) {
             throw new \InvalidArgumentException('You must specify whether you want to --add, --delete, --skip, --fail or --info the specified migration.');
         }
@@ -131,26 +133,26 @@ EOT
                 // or, better, add a method `$migrationService->migrationDefinitionExists` / use a specific exception in getMigrationsDefinitions...
                 // Note also that $migration->path can not be used as is, as it is usually relative to the app's root dir
                 //if (is_file($migration->path)) {
-                    try {
-                        $migrationDefinitionCollection = $migrationService->getMigrationsDefinitions(array($migration->path));
-                        if (count($migrationDefinitionCollection)) {
-                            $migrationDefinition = $migrationDefinitionCollection->reset();
-                            $migrationDefinition = $migrationService->parseMigrationDefinition($migrationDefinition);
+                try {
+                    $migrationDefinitionCollection = $migrationService->getMigrationsDefinitions(array($migration->path));
+                    if (count($migrationDefinitionCollection)) {
+                        $migrationDefinition = $migrationDefinitionCollection->reset();
+                        $migrationDefinition = $migrationService->parseMigrationDefinition($migrationDefinition);
 
-                            if ($migrationDefinition->status != MigrationDefinition::STATUS_PARSED) {
-                                $output->writeln('Definition error: <error>' . $migrationDefinition->parsingError . '</error>');
-                            }
-
-                            if (md5($migrationDefinition->rawDefinition) != $migration->md5) {
-                                $output->writeln('Notes: <comment>The migration definition file has now a different checksum</comment>');
-                            }
-                        } else {
-                            $output->writeln('Definition error: <error>The migration definition file can not be loaded</error>');
+                        if ($migrationDefinition->status != MigrationDefinition::STATUS_PARSED) {
+                            $output->writeln('Definition error: <error>' . $migrationDefinition->parsingError . '</error>');
                         }
-                    } catch (\Exception $e) {
-                        /// @todo one day we should be able to limit the kind of exceptions we have to catch here...
-                        $output->writeln('Definition parsing error: <error>' . $e->getMessage() . '</error>');
+
+                        if (md5($migrationDefinition->rawDefinition) != $migration->md5) {
+                            $output->writeln('Notes: <comment>The migration definition file has now a different checksum</comment>');
+                        }
+                    } else {
+                        $output->writeln('Definition error: <error>The migration definition file can not be loaded</error>');
                     }
+                } catch (\Exception $e) {
+                    /// @todo one day we should be able to limit the kind of exceptions we have to catch here...
+                    $output->writeln('Definition parsing error: <error>' . $e->getMessage() . '</error>');
+                }
                 //} else {
                 //    $output->writeln('Definition error: <error>The migration definition file can not be found any more</error>');
                 //}

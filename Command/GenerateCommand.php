@@ -8,6 +8,8 @@ use Kaliop\eZMigrationBundle\API\MatcherInterface;
 use Kaliop\eZMigrationBundle\API\EnumerableMatcherInterface;
 use Kaliop\eZMigrationBundle\API\Event\MigrationGeneratedEvent;
 use Kaliop\eZMigrationBundle\Core\MigrationService;
+use Symfony\Component\Console\Attribute\AsCommand;
+use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
@@ -21,11 +23,14 @@ use Twig\Environment;
 /**
  * @todo allow passing in more context options, esp. for content/generate migrations
  */
+#[AsCommand(
+    name: 'kaliop:migration:generate',
+    description: 'Generate a blank migration definition file.'
+)]
 class GenerateCommand extends AbstractCommand
 {
-    const DIR_CREATE_PERMISSIONS = 0755;
+    public const DIR_CREATE_PERMISSIONS = 0755;
 
-    protected static $defaultName = 'kaliop:migration:generate';
 
     private $availableMigrationFormats = array('yml', 'php', 'sql', 'json');
     private $availableModes = array('create', 'update', 'delete');
@@ -38,7 +43,7 @@ class GenerateCommand extends AbstractCommand
     protected $configResolver;
 
     public function __construct(MigrationService $migrationService, EventDispatcherInterface $eventDispatcher,
-        Environment $twig, ConfigResolverInterface $configResolver, KernelInterface $kernel)
+                                Environment $twig, ConfigResolverInterface $configResolver, KernelInterface $kernel)
     {
         parent::__construct($migrationService, $kernel);
         $this->eventDispatcher = $eventDispatcher;
@@ -49,10 +54,9 @@ class GenerateCommand extends AbstractCommand
     /**
      * Configure the console command
      */
-    protected function configure()
+    protected function configure(): void
     {
         $this
-            ->setDescription('Generate a blank migration definition file.')
             ->addOption('format', null, InputOption::VALUE_REQUIRED, 'The format of migration file to generate (' . implode(', ', $this->availableMigrationFormats) . ')', 'yml')
             ->addOption('type', null, InputOption::VALUE_REQUIRED, 'The type of migration to generate (' . implode(', ', $this->availableTypes) . ')', '')
             ->addOption('mode', null, InputOption::VALUE_REQUIRED, 'The mode of the migration (' . implode(', ', $this->availableModes) . ')', 'create')
@@ -111,7 +115,7 @@ EOT
      *
      * @todo for type=db, we could fold 'dbserver' option into 'mode'
      */
-    public function execute(InputInterface $input, OutputInterface $output) : int
+    public function execute(InputInterface $input, OutputInterface $output):int
     {
         $this->setOutput($output);
         $this->setVerbosity($output->getVerbosity());

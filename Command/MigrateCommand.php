@@ -9,6 +9,7 @@ use Kaliop\eZMigrationBundle\API\Exception\MigrationBundleException;
 use Kaliop\eZMigrationBundle\Core\EventListener\TracingStepExecutedListener;
 use Kaliop\eZMigrationBundle\Core\MigrationService;
 use Kaliop\eZMigrationBundle\Core\Process\Process;
+use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
@@ -21,22 +22,24 @@ use Symfony\Component\Process\PhpExecutableFinder;
 /**
  * Command to execute the available migration definitions.
  */
+#[AsCommand(
+    name: 'kaliop:migration:migrate',
+    description: 'Execute available migration definitions.'
+)]
 class MigrateCommand extends AbstractCommand
 {
     // in between QUIET and NORMAL. Sadly the OutputInterface consts changed somewhere between Symfony 2 and 3. Will they do it again?
-    static $VERBOSITY_CHILD = 0.5;
+    public static float $VERBOSITY_CHILD = 0.5;
 
-    protected static $defaultName = 'kaliop:migration:migrate';
+    protected int $subProcessTimeout = 86400;
+    protected string $subProcessErrorString = '';
 
-    protected $subProcessTimeout = 86400;
-    protected $subProcessErrorString = '';
-    protected $stepExecutedListener;
-
-    public function __construct(MigrationService $migrationService, TracingStepExecutedListener $stepExecutedListener,
-        KernelInterface $kernel)
-    {
+    public function __construct(
+        MigrationService $migrationService,
+        private readonly TracingStepExecutedListener $stepExecutedListener,
+        KernelInterface $kernel,
+    ) {
         parent::__construct($migrationService, $kernel);
-        $this->stepExecutedListener = $stepExecutedListener;
     }
 
     /**
@@ -44,12 +47,11 @@ class MigrateCommand extends AbstractCommand
      *
      * Define the name, options and help text.
      */
-    protected function configure()
+    protected function configure(): void
     {
         parent::configure();
 
         $this
-            ->setDescription('Execute available migration definitions.')
             // nb: when adding options, remember to forward them to sub-commands executed in 'separate-process' mode
             ->addOption('admin-login', 'a', InputOption::VALUE_REQUIRED, "Login of admin account used whenever elevated privileges are needed (user id 14 used by default)")
             ->addOption('clear-cache', 'c', InputOption::VALUE_NONE, "Clear the cache after the command finishes")
@@ -76,7 +78,7 @@ You can optionally specify the path to migration definitions with <info>--path</
 
 Use -v and -vv options to get troubleshooting information on the execution of each step in the migration(s).
 EOT
-        );
+            );
 
         if (self::$VERBOSITY_CHILD <= OutputInterface::VERBOSITY_QUIET) {
             self::$VERBOSITY_CHILD = (OutputInterface::VERBOSITY_QUIET + OutputInterface::VERBOSITY_NORMAL) / 2;
@@ -90,7 +92,7 @@ EOT
      * @param OutputInterface $output
      * @return int 0 if everything went fine, or an error code
      */
-    protected function execute(InputInterface $input, OutputInterface $output)  : int
+    protected function execute(InputInterface $input, OutputInterface $output):int
     {
         $start = microtime(true);
 
@@ -199,7 +201,7 @@ EOT
                     $this->executeMigrationInSeparateProcess($migrationDefinition, $migrationService, $builderArgs);
 
                     $executed++;
-                /// @todo catch \Throwable
+                    /// @todo catch \Throwable
                 } catch (\Exception $e) {
                     $failed++;
 

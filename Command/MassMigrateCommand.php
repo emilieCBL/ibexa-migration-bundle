@@ -10,6 +10,8 @@ use Kaliop\eZMigrationBundle\Core\Helper\ProcessManager;
 use Kaliop\eZMigrationBundle\Core\Loader\FilesystemRecursive;
 use Kaliop\eZMigrationBundle\Core\MigrationService;
 use Kaliop\eZMigrationBundle\Core\Process\Process;
+use Symfony\Component\Console\Attribute\AsCommand;
+use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Input\InputInterface;
@@ -18,32 +20,39 @@ use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\HttpKernel\KernelInterface;
 use Symfony\Component\Process\PhpExecutableFinder;
 
+/**
+ * @todo (!important) can we rename the option --separate-process ?
+ */
+#[AsCommand(
+    name: 'kaliop:migration:mass_migrate',
+    description: 'Executes available migration definitions, using parallelism.'
+)]
 class MassMigrateCommand extends MigrateCommand
 {
-    protected static $defaultName = 'kaliop:migration:mass_migrate';
-
     // Note: in this array, we lump together in STATUS_DONE everything which is not failed or suspended
-    protected $migrationsDone = array(Migration::STATUS_DONE => 0, Migration::STATUS_FAILED => 0, Migration::STATUS_SKIPPED => 0);
-    protected $migrationsAlreadyDone = array();
-    protected $loader;
+    protected array $migrationsDone = [
+        Migration::STATUS_DONE => 0,
+        Migration::STATUS_FAILED => 0,
+        Migration::STATUS_SKIPPED => 0
+    ];
 
-    public function __construct(MigrationService $migrationService, TracingStepExecutedListener $stepExecutedListener,
-        KernelInterface $kernel, FilesystemRecursive $loader)
-    {
+    protected array $migrationsAlreadyDone = [];
+
+    public function __construct(
+        MigrationService $migrationService,
+        TracingStepExecutedListener $stepExecutedListener,
+        KernelInterface $kernel,
+        private readonly FilesystemRecursive $loader,
+    ) {
         parent::__construct($migrationService, $stepExecutedListener, $kernel);
-        $this->loader = $loader;
     }
 
-    /**
-     * @todo (!important) can we rename the option --separate-process ?
-     */
-    protected function configure()
+    protected function configure(): void
     {
         parent::configure();
 
         $this
-            ->setAliases(array())
-            ->setDescription('Executes available migration definitions, using parallelism.')
+            ->setAliases([])
             ->addOption('concurrency', 'r', InputOption::VALUE_REQUIRED, "The number of executors to run in parallel", 2)
             ->setHelp(<<<EOT
 This command is designed to scan recursively a directory for migration files and execute them all in parallel.
@@ -64,7 +73,7 @@ EOT
      * @param OutputInterface $output
      * @return int 0 if everything went fine, or an error code
      */
-    protected function execute(InputInterface $input, OutputInterface $output)  : int
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $start = microtime(true);
 
@@ -285,7 +294,7 @@ EOT
                     $this->executeMigrationInSeparateProcess($migrationDefinition, $migrationService, $builderArgs);
 
                     $executed++;
-                /// @todo catch \Throwable
+                    /// @todo catch \Throwable
                 } catch (\Exception $e) {
                     $failed++;
 
