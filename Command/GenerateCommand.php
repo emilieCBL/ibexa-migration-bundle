@@ -111,7 +111,7 @@ EOT
      *
      * @todo for type=db, we could fold 'dbserver' option into 'mode'
      */
-    public function execute(InputInterface $input, OutputInterface $output)
+    public function execute(InputInterface $input, OutputInterface $output) : int
     {
         $this->setOutput($output);
         $this->setVerbosity($output->getVerbosity());
