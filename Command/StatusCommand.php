@@ -42,7 +42,7 @@ EOT
             );
     }
 
-    public function execute(InputInterface $input, OutputInterface $output)
+    public function execute(InputInterface $input, OutputInterface $output)  : int
     {
         $this->setOutput($output);
         $this->setVerbosity($output->getVerbosity());
